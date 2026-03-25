@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog Table Builder</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: #f6f7f6; color: #090909; min-height: 100vh; line-height: 1.4; }
+.app { max-width: 900px; margin: 0 auto; padding: 48px 24px 120px; }
+.header { margin-bottom: 36px; }
+.header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.header p { font-size: 14px; color: #8e918e; }
+
+/* Paste zone */
+.paste-zone { background: #fff; border: 1.5px dashed #bbbebb; border-radius: 8px; padding: 40px 24px; text-align: center; cursor: pointer; margin-bottom: 24px; position: relative; transition: all 0.2s; }
+.paste-zone:hover { border-color: #626762; background: #f6f7f6; }
+.paste-zone.has-content { border-style: solid; border-color: #dbded8; padding: 16px; text-align: left; cursor: default; }
+.placeholder .label { font-size: 15px; font-weight: 500; color: #626762; display: block; margin-bottom: 4px; }
+.placeholder .hint { font-size: 12px; color: #a1a5a0; display: block; margin-bottom: 6px; }
+.has-content .placeholder { display: none; }
+.raw-table { display: none; width: 100%; overflow-x: auto; }
+.has-content .raw-table { display: block; }
+.raw-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.raw-table th, .raw-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #dbded8; }
+.raw-table th { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #3c3e3c; background: #f6f7f6; }
+.raw-table td { color: #626762; }
+.clear-btn { position: absolute; top: 8px; right: 8px; background: #f6f7f6; border: 1px solid #dbded8; border-radius: 5px; padding: 3px 8px; font-size: 11px; color: #8e918e; cursor: pointer; font-family: inherit; display: none; }
+.has-content .clear-btn { display: block; }
+.badge { font-size: 12px; color: #3c8135; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 100px; font-weight: 500; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; background: #090909; color: #fff; font-family: inherit; }
+.btn:hover { background: #3c3e3c; }
+.btn:disabled { background: #bbbebb; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #8e918e; padding: 6px 10px; border: none; cursor: pointer; font-family: inherit; font-size: 12px; border-radius: 6px; }
+.btn-ghost:hover { color: #090909; background: #f6f7f6; }
+.section-bar { display: none; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.section-bar.visible { display: flex; }
+
+/* Panels */
+.output { display: none; }
+.output.visible { display: block; }
+.panel { background: #fff; border: 1px solid #dbded8; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid #dbded8; background: #f6f7f6; }
+.panel-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: #8e918e; }
+.panel-body { padding: 16px; }
+.preview-frame { background: #e8ebe6; border-radius: 6px; padding: 20px; min-height: 60px; }
+.code-block { background: #232323; border-radius: 6px; max-height: 300px; overflow-y: auto; }
+.code-block pre { padding: 14px 16px; font-family: Consolas, monospace; font-size: 11px; line-height: 1.6; color: #bbbebb; white-space: pre-wrap; word-break: break-all; }
+
+/* Review cards */
+.review-items { display: flex; flex-direction: column; gap: 6px; }
+.review-item { display: flex; gap: 10px; padding: 10px 12px; border-radius: 7px; font-size: 13px; line-height: 1.45; cursor: pointer; user-select: none; }
+.review-item.ok { cursor: default; }
+.review-item.typo { background: #fef2f2; border: 1.5px solid #fecaca; color: #991b1b; }
+.review-item.suggestion { background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e; }
+.review-item.info { background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1e40af; }
+.review-item.ok { background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #166534; }
+.review-item.selected { box-shadow: 0 0 0 2px currentColor; }
+.review-check { flex-shrink: 0; width: 18px; height: 18px; border-radius: 4px; border: 2px solid currentColor; opacity: 0.3; display: flex; align-items: center; justify-content: center; }
+.review-item.selected .review-check { opacity: 1; background: currentColor; }
+.review-content { flex: 1; }
+.review-problem strong { font-weight: 700; }
+.review-fix { font-size: 12px; opacity: 0.8; padding-left: 10px; border-left: 2px solid currentColor; margin-top: 5px; }
+.review-fix-label { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.6; }
+.select-actions { display: none; gap: 6px; align-items: center; font-size: 12px; color: #8e918e; }
+.select-actions.visible { display: flex; }
+.select-actions a { color: #090909; text-decoration: none; cursor: pointer; font-weight: 500; }
+
+/* Regen bar */
+.regen-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #dbded8; box-shadow: 0 -3px 12px rgba(0,0,0,0.05); padding: 10px 24px; display: flex; justify-content: center; align-items: center; gap: 12px; transform: translateY(100%); transition: transform 0.25s ease; z-index: 50; }
+.regen-bar.visible { transform: translateY(0); }
+.regen-count { font-size: 13px; color: #8e918e; }
+.regen-count span { font-weight: 700; color: #090909; }
+.toast { position: fixed; bottom: 24px; left: 50%; z-index: 100; transform: translateX(-50%) translateY(20px); background: #090909; color: #fff; padding: 8px 20px; border-radius: 100px; font-size: 13px; opacity: 0; transition: all 0.25s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.loading { display: none; align-items: center; justify-content: center; gap: 10px; padding: 36px; color: #8e918e; font-size: 14px; }
+.loading.visible { display: flex; }
+.spinner { width: 16px; height: 16px; border: 2px solid #dbded8; border-top-color: #090909; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.manual-toggle { background: none; border: none; color: #626762; font-family: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; }
+.manual-area { display: none; margin-top: 8px; }
+.manual-area.visible { display: block; }
+.manual-area textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #bbbebb; border-radius: 6px; font-family: Consolas, monospace; font-size: 12px; line-height: 1.5; resize: vertical; color: #090909; background: #fff; }
+.manual-area textarea:focus { outline: none; border-color: #626762; }
+.has-content .manual-area, .has-content .manual-toggle { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Blog Table Builder</h1>
+    <p>Paste a table from Google Docs - get blog-ready HTML with AI content review.</p>
+  </div>
+
+  <div class="paste-zone" id="pasteZone">
+    <div class="placeholder">
+      <span class="label">Paste your table here</span>
+      <span class="hint">Copy from Google Docs and paste (Ctrl+V)</span>
+      <button class="manual-toggle" id="manualToggle">Type / paste manually</button>
+    </div>
+    <div class="manual-area" id="manualArea">
+      <textarea id="manualText" placeholder="Paste tab-separated or pipe-separated text here&#10;&#10;Tool | Best For | Price&#10;Botpress | Custom AI agents | Free&#10;Tidio | Simple chatbots | Free"></textarea>
+      <button class="btn" id="parseBtn" style="margin-top:6px;font-size:12px;padding:5px 12px;">Parse table</button>
+    </div>
+    <div class="raw-table" id="rawTable"></div>
+    <button class="clear-btn" id="clearBtn">Clear</button>
+  </div>
+
+  <div class="section-bar" id="sectionBar">
+    <span class="badge" id="badge">Table detected</span>
+    <button class="btn" id="generateBtn">Generate</button>
+  </div>
+
+  <div class="loading" id="loading"><div class="spinner"></div><span id="loadingMsg">Sending to AI agent...</span></div>
+
+  <div class="output" id="output">
+    <div class="panel" id="reviewPanel" style="display:none;">
+      <div class="panel-header">
+        <span class="panel-title">Content Review</span>
+        <div class="select-actions" id="selActions">
+          <a id="selAll">Select all</a>
+          <span style="color:#bbbebb">&middot;</span>
+          <a id="selNone">Clear</a>
+        </div>
+      </div>
+      <div class="panel-body"><div class="review-items" id="reviewItems"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Preview</span></div>
+      <div class="panel-body" style="padding:0;"><div class="preview-frame" id="preview"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">HTML Embed</span>
+        <button class="btn-ghost" id="copyBtn">Copy</button>
+      </div>
+      <div class="code-block"><pre id="code"></pre></div>
+    </div>
+  </div>
+</div>
+
+<div class="regen-bar" id="regenBar">
+  <div class="regen-count"><span id="selCount">0</span> fix(es) selected</div>
+  <button class="btn" id="regenBtn">Regenerate with fixes</button>
+</div>
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<!-- Botpress Webchat - hidden, used as backend communication -->
+<script src="https://cdn.botpress.cloud/webchat/v3.6/inject.js"></script>
+<script src="https://files.bpcontent.cloud/2026/03/24/21/20260324211609-AXBUJDL9.js" defer></script>
+
+<script>
+// ==========================================
+// CONFIG
+// ==========================================
+// Webchat is initialized by the Botpress config script above.
+// We just need to listen for events.
+
+// ==========================================
+// State
+// ==========================================
+var parsedData = null;
+var generatedHTML = '';
+var botReady = false;
+var waitingForResponse = false;
+var responseCallback = null;
+
+// ==========================================
+// DOM refs
+// ==========================================
+function g(id) { return document.getElementById(id); }
+var pasteZone = g('pasteZone'), rawTable = g('rawTable'), sectionBar = g('sectionBar');
+var badge = g('badge'), generateBtn = g('generateBtn'), loadingEl = g('loading');
+var loadingMsg = g('loadingMsg'), outputEl = g('output'), reviewPanel = g('reviewPanel');
+var reviewItemsEl = g('reviewItems'), selActions = g('selActions');
+var previewEl = g('preview'), codeEl = g('code'), copyBtn = g('copyBtn');
+var clearBtn = g('clearBtn'), toastEl = g('toast'), regenBar = g('regenBar');
+var regenBtn = g('regenBtn'), selCountEl = g('selCount');
+
+var selectedFixes = {};
+var selectedCount = 0;
+
+// ==========================================
+// Initialize Botpress webchat (hidden)
+// ==========================================
+// Webchat initializes itself via the config script.
+// Hide the widget once it loads.
+window.botpress.on('webchat:ready', function() {
+  botReady = true;
+  // Hide the webchat widget - we only use it as a backend
+  var widget = document.getElementById('bp-web-widget');
+  if (widget) widget.style.display = 'none';
+  console.log('Botpress agent connected');
+});
+
+window.botpress.on('webchat:messageReceived', function(ev) {
+  if (waitingForResponse && ev && ev.payload && ev.payload.text) {
+    waitingForResponse = false;
+    if (responseCallback) {
+      responseCallback(ev.payload.text);
+      responseCallback = null;
+    }
+  }
+});
+
+function sendToAgent(message) {
+  return new Promise(function(resolve) {
+    responseCallback = resolve;
+    waitingForResponse = true;
+    window.botpress.sendMessage(message);
+    // Timeout after 60s
+    setTimeout(function() {
+      if (waitingForResponse) {
+        waitingForResponse = false;
+        responseCallback = null;
+        resolve('Error: Agent did not respond within 60 seconds.');
+      }
+    }, 60000);
+  });
+}
+
+// ==========================================
+// Table parsing (client-side)
+// ==========================================
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function parseHTML(html) {
+  try {
+    var c = document.createElement('div'); c.innerHTML = html;
+    var t = c.querySelector('table'); if (!t) return null;
+    var trs = t.querySelectorAll('tr'); if (trs.length < 2) return null;
+    var headers = [], rows = [];
+    for (var i = 0; i < trs.length; i++) {
+      var cells = trs[i].querySelectorAll('td, th');
+      var vals = [];
+      for (var j = 0; j < cells.length; j++) vals.push(cells[j].textContent.trim());
+      if (i === 0) headers = vals; else rows.push(vals);
+    }
+    return headers.length < 2 ? null : { headers: headers, rows: rows };
+  } catch (e) { return null; }
+}
+
+function parsePlain(text) {
+  var lines = text.trim().split('\n');
+  var clean = [];
+  for (var i = 0; i < lines.length; i++) { if (lines[i].trim()) clean.push(lines[i]); }
+  if (clean.length < 2) return null;
+  var hd = clean[0].split('\t');
+  for (var i = 0; i < hd.length; i++) hd[i] = hd[i].trim();
+  if (hd.length >= 2) {
+    var rows = [];
+    for (var i = 1; i < clean.length; i++) {
+      var cs = clean[i].split('\t');
+      for (var j = 0; j < cs.length; j++) cs[j] = cs[j].trim();
+      if (cs.length === hd.length) rows.push(cs);
+    }
+    if (rows.length > 0) return { headers: hd, rows: rows };
+  }
+  // Fallback: pipe
+  hd = clean[0].split('|');
+  var hd2 = [];
+  for (var i = 0; i < hd.length; i++) { if (hd[i].trim()) hd2.push(hd[i].trim()); }
+  hd = hd2;
+  if (hd.length < 2) return null;
+  var rows = [];
+  for (var i = 1; i < clean.length; i++) {
+    if (/^[\s|:\-]+$/.test(clean[i])) continue;
+    var r = clean[i].split('|');
+    var r2 = [];
+    for (var j = 0; j < r.length; j++) { if (r[j].trim()) r2.push(r[j].trim()); }
+    if (r2.length === hd.length) rows.push(r2);
+  }
+  return rows.length > 0 ? { headers: hd, rows: rows } : null;
+}
+
+function showTable() {
+  var h = '<table><tr>';
+  for (var i = 0; i < parsedData.headers.length; i++) h += '<th>' + esc(parsedData.headers[i]) + '</th>';
+  h += '</tr>';
+  for (var i = 0; i < parsedData.rows.length; i++) {
+    h += '<tr>';
+    for (var j = 0; j < parsedData.rows[i].length; j++) h += '<td>' + esc(parsedData.rows[i][j]) + '</td>';
+    h += '</tr>';
+  }
+  rawTable.innerHTML = h + '</table>';
+  pasteZone.classList.add('has-content');
+  sectionBar.classList.add('visible');
+  badge.textContent = 'Table detected - ' + parsedData.headers.length + ' cols, ' + parsedData.rows.length + ' rows';
+}
+
+function makeTableHTML(data) {
+  var n = data.headers.length;
+  var w1 = '25%', wr = (75 / (n - 1)).toFixed(1) + '%';
+  var h = '<table style="width:100%; text-align: left; border-collapse: collapse;">\n';
+  h += '  <tr style="border-bottom: 1px solid #d3d3d3;">\n';
+  for (var i = 0; i < data.headers.length; i++) {
+    var w = (i === 0) ? w1 : wr;
+    h += '    <td style="padding: 8px; width: ' + w + '; vertical-align: bottom; font-weight: 600;">' + esc(data.headers[i]) + '</td>\n';
+  }
+  h += '  </tr>\n';
+  for (var i = 0; i < data.rows.length; i++) {
+    h += '  <tr style="border-bottom: 1px solid #d3d3d3;">\n';
+    for (var j = 0; j < data.rows[i].length; j++) {
+      h += '    <td style="padding: 8px; vertical-align: bottom;">' + esc(data.rows[i][j]) + '</td>\n';
+    }
+    h += '  </tr>\n';
+  }
+  return h + '</table>';
+}
+
+function clearAll() {
+  parsedData = null; generatedHTML = '';
+  selectedFixes = {}; selectedCount = 0;
+  rawTable.innerHTML = '';
+  pasteZone.classList.remove('has-content');
+  sectionBar.classList.remove('visible');
+  outputEl.classList.remove('visible');
+  loadingEl.classList.remove('visible');
+  regenBar.classList.remove('visible');
+  reviewPanel.style.display = 'none';
+}
+
+// ==========================================
+// Paste handling
+// ==========================================
+document.addEventListener('paste', function(e) {
+  if (parsedData) return;
+  var data = null;
+  try { var h = e.clipboardData.getData('text/html'); if (h) data = parseHTML(h); } catch(er) {}
+  if (!data) { try { var p = e.clipboardData.getData('text/plain'); if (p) data = parsePlain(p); } catch(er) {} }
+  if (data && data.headers.length > 0 && data.rows.length > 0) { parsedData = data; showTable(); }
+});
+
+pasteZone.addEventListener('click', function() {
+  if (!pasteZone.classList.contains('has-content')) pasteZone.focus();
+});
+
+clearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearAll(); });
+
+g('manualToggle').addEventListener('click', function(e) {
+  e.stopPropagation();
+  var area = g('manualArea');
+  if (area.classList.contains('visible')) area.classList.remove('visible');
+  else { area.classList.add('visible'); g('manualText').focus(); }
+});
+
+g('parseBtn').addEventListener('click', function(e) {
+  e.stopPropagation();
+  var data = parsePlain(g('manualText').value);
+  if (data && data.headers.length > 0 && data.rows.length > 0) { parsedData = data; showTable(); }
+  else { g('manualText').style.borderColor = '#dc2626'; setTimeout(function() { g('manualText').style.borderColor = ''; }, 2000); }
+});
+
+// ==========================================
+// Generate: send to agent via Botpress
+// ==========================================
+generateBtn.addEventListener('click', function() {
+  if (!parsedData) return;
+
+  // Generate HTML locally (deterministic, no AI needed)
+  generatedHTML = makeTableHTML(parsedData);
+  previewEl.innerHTML = generatedHTML;
+  codeEl.textContent = generatedHTML;
+
+  // Send table to agent for content review
+  outputEl.classList.remove('visible');
+  regenBar.classList.remove('visible');
+  selectedFixes = {}; selectedCount = 0;
+  loadingEl.classList.add('visible');
+  loadingMsg.textContent = 'AI is reviewing your content...';
+  generateBtn.disabled = true;
+
+  // Format as pipe-separated for the agent
+  var msg = parsedData.headers.join(' | ') + '\n';
+  for (var i = 0; i < parsedData.rows.length; i++) {
+    msg += parsedData.rows[i].join(' | ') + '\n';
+  }
+
+  sendToAgent(msg).then(function(response) {
+    loadingEl.classList.remove('visible');
+    generateBtn.disabled = false;
+
+    // Parse the agent response for review items
+    var reviewData = parseAgentReview(response);
+
+    if (reviewData.length > 0) {
+      renderReview(reviewData);
+      reviewPanel.style.display = 'block';
+    } else {
+      reviewPanel.style.display = 'none';
+    }
+
+    outputEl.classList.add('visible');
+  });
+});
+
+// ==========================================
+// Parse agent response into review items
+// ==========================================
+function parseAgentReview(text) {
+  var items = [];
+
+  // Try to find structured review items in the response
+  // Look for patterns like "**Typo**:" or "- **Suggestion**:" or "Cell:" etc.
+  var lines = text.split('\n');
+  var currentType = 'info';
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    // Detect type markers
+    var lower = line.toLowerCase();
+    if (lower.indexOf('typo') !== -1 && (lower.indexOf('**') !== -1 || lower.indexOf(':') !== -1)) currentType = 'typo';
+    else if (lower.indexOf('suggestion') !== -1 && (lower.indexOf('**') !== -1 || lower.indexOf(':') !== -1)) currentType = 'suggestion';
+    else if (lower.indexOf('no issues') !== -1 || lower.indexOf('clean and consistent') !== -1 || lower.indexOf('looks good') !== -1) {
+      items.push({ type: 'ok', cell: '', problem: line.replace(/\*\*/g, ''), fix: '' });
+      continue;
+    }
+
+    // Look for cell references with fixes
+    var cellMatch = line.match(/"([^"]+)"\s*[-:]+\s*(.+)/);
+    if (cellMatch) {
+      var problem = cellMatch[2].trim();
+      var fix = '';
+      // Check next line for fix
+      if (i + 1 < lines.length) {
+        var nextLine = lines[i + 1].trim();
+        if (nextLine.toLowerCase().indexOf('fix') !== -1 || nextLine.toLowerCase().indexOf('suggest') !== -1 || nextLine.indexOf('->') !== -1 || nextLine.indexOf('-->') !== -1) {
+          fix = nextLine.replace(/^.*?(fix|suggest)[^:]*:\s*/i, '').replace(/\*\*/g, '').trim();
+          i++;
+        }
+      }
+      items.push({ type: currentType, cell: cellMatch[1], problem: problem.replace(/\*\*/g, ''), fix: fix });
+    }
+  }
+
+  // If we couldn't parse structured items, show the raw response as info
+  if (items.length === 0 && text.trim()) {
+    // Check if it's just a "no issues" message
+    if (text.toLowerCase().indexOf('no issues') !== -1 || text.toLowerCase().indexOf('clean') !== -1) {
+      items.push({ type: 'ok', cell: '', problem: 'No issues found - content is clean and consistent.', fix: '' });
+    } else {
+      // Show raw response
+      items.push({ type: 'info', cell: '', problem: text.substring(0, 200), fix: '' });
+    }
+  }
+
+  return items;
+}
+
+// ==========================================
+// Render review items
+// ==========================================
+function renderReview(items) {
+  reviewItemsEl.innerHTML = '';
+  var hasFixable = false;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type !== 'ok') hasFixable = true;
+  }
+  if (hasFixable) selActions.classList.add('visible'); else selActions.classList.remove('visible');
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var fixable = item.type !== 'ok';
+    var div = document.createElement('div');
+    div.className = 'review-item ' + item.type;
+    div.setAttribute('data-idx', i);
+
+    var checkHTML = fixable ? '<div class="review-check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg></div>' : '';
+    var cellRef = item.cell ? '<strong>"' + esc(item.cell) + '"</strong> - ' : '';
+    var fixHTML = (fixable && item.fix) ? '<div class="review-fix"><div class="review-fix-label">Suggested fix</div>' + esc(item.fix) + '</div>' : '';
+
+    div.innerHTML = checkHTML + '<div class="review-content"><div class="review-problem">' + cellRef + esc(item.problem) + '</div>' + fixHTML + '</div>';
+
+    if (fixable) {
+      (function(idx, el) {
+        el.addEventListener('click', function() {
+          if (selectedFixes[idx]) { delete selectedFixes[idx]; selectedCount--; el.classList.remove('selected'); }
+          else { selectedFixes[idx] = true; selectedCount++; el.classList.add('selected'); }
+          selCountEl.textContent = selectedCount;
+          if (selectedCount > 0) regenBar.classList.add('visible'); else regenBar.classList.remove('visible');
+        });
+      })(i, div);
+    }
+    reviewItemsEl.appendChild(div);
+  }
+
+  // Store for regen
+  window._reviewItems = items;
+}
+
+// ==========================================
+// Select all / none
+// ==========================================
+g('selAll').addEventListener('click', function() {
+  if (!window._reviewItems) return;
+  for (var i = 0; i < window._reviewItems.length; i++) {
+    if (window._reviewItems[i].type !== 'ok' && !selectedFixes[i]) {
+      selectedFixes[i] = true; selectedCount++;
+      var el = reviewItemsEl.querySelector('[data-idx="' + i + '"]');
+      if (el) el.classList.add('selected');
+    }
+  }
+  selCountEl.textContent = selectedCount;
+  if (selectedCount > 0) regenBar.classList.add('visible');
+});
+
+g('selNone').addEventListener('click', function() {
+  selectedFixes = {}; selectedCount = 0;
+  var els = reviewItemsEl.querySelectorAll('.selected');
+  for (var i = 0; i < els.length; i++) els[i].classList.remove('selected');
+  selCountEl.textContent = 0;
+  regenBar.classList.remove('visible');
+});
+
+// ==========================================
+// Regenerate with fixes (local + agent re-review)
+// ==========================================
+regenBtn.addEventListener('click', function() {
+  if (!parsedData || selectedCount === 0 || !window._reviewItems) return;
+
+  // Apply fixes locally
+  var newHeaders = parsedData.headers.slice();
+  var newRows = [];
+  for (var i = 0; i < parsedData.rows.length; i++) newRows.push(parsedData.rows[i].slice());
+
+  for (var idx in selectedFixes) {
+    var fix = window._reviewItems[idx];
+    if (!fix || !fix.cell || !fix.fix) continue;
+    var ct = fix.cell.trim(), ft = fix.fix.trim(), found = false;
+    for (var i = 0; i < newHeaders.length && !found; i++) {
+      if (newHeaders[i].trim() === ct) { newHeaders[i] = ft; found = true; }
+    }
+    for (var r = 0; r < newRows.length && !found; r++) {
+      for (var c = 0; c < newRows[r].length && !found; c++) {
+        if (newRows[r][c].trim() === ct) { newRows[r][c] = ft; found = true; }
+      }
+    }
+  }
+
+  parsedData = { headers: newHeaders, rows: newRows };
+  selectedFixes = {}; selectedCount = 0;
+
+  // Update all views
+  showTable();
+  generatedHTML = makeTableHTML(parsedData);
+  previewEl.innerHTML = generatedHTML;
+  codeEl.textContent = generatedHTML;
+  regenBar.classList.remove('visible');
+
+  // Re-review with agent
+  loadingEl.classList.add('visible');
+  loadingMsg.textContent = 'Re-reviewing updated content...';
+  generateBtn.disabled = true;
+
+  var msg = parsedData.headers.join(' | ') + '\n';
+  for (var i = 0; i < parsedData.rows.length; i++) msg += parsedData.rows[i].join(' | ') + '\n';
+
+  sendToAgent(msg).then(function(response) {
+    loadingEl.classList.remove('visible');
+    generateBtn.disabled = false;
+    var reviewData = parseAgentReview(response);
+    if (reviewData.length > 0) { renderReview(reviewData); reviewPanel.style.display = 'block'; }
+    else { reviewPanel.style.display = 'none'; }
+  });
+});
+
+// ==========================================
+// Copy
+// ==========================================
+copyBtn.addEventListener('click', function() {
+  navigator.clipboard.writeText(generatedHTML).then(function() {
+    toastEl.classList.add('show');
+    copyBtn.textContent = 'Copied!';
+    setTimeout(function() { toastEl.classList.remove('show'); copyBtn.textContent = 'Copy'; }, 2000);
+  });
+});
+</script>
+</body>
+</html>
